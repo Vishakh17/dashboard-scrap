@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scrap Dashboard</title>
+    <script src="{{ url_for('plotly_js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="page-shell">
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">Rubber Scrap</p>
+            <h1>Scrap Dashboard</h1>
+            {% if uploaded %}
+            <p class="muted">{{ file_name }} · {{ metadata.sheet_name }} · {{ row_count }} rows · {{ date_range }}</p>
+            {% endif %}
+        </div>
+
+        <form class="upload-form" method="POST" enctype="multipart/form-data">
+            <input class="file-input" type="file" name="file" accept=".xls,.xlsx" required>
+            <button type="submit">Upload Excel</button>
+        </form>
+    </header>
+
+    {% if error %}
+    <section class="alert">{{ error }}</section>
+    {% endif %}
+
+    {% if not uploaded %}
+    <section class="empty-state">
+        <h2>Upload an Excel workbook</h2>
+        <p>The dashboard will open automatically when a scrap workbook is available in the uploads folder.</p>
+    </section>
+    {% endif %}
+
+    {% if uploaded %}
+    <form class="filters" method="GET">
+        <input type="hidden" name="file" value="{{ file_name }}">
+
+        <label>
+            Department
+            <select name="dept">
+                <option value="All">All</option>
+                {% for option in options.dept %}
+                <option value="{{ option }}" {% if filters.dept == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            Type
+            <select name="type">
+                <option value="All">All</option>
+                {% for option in options.type %}
+                <option value="{{ option }}" {% if filters.type == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            Month
+            <select name="month">
+                <option value="All">All</option>
+                {% for option in options.month %}
+                <option value="{{ option }}" {% if filters.month == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <button type="submit">Apply</button>
+        <a class="reset-link" href="{{ url_for('dashboard', file=file_name) }}">Reset</a>
+    </form>
+
+    <section class="kpi-grid">
+        {% for kpi in kpis %}
+        <article class="kpi-card">
+            <span>{{ kpi.label }}</span>
+            <strong>{{ kpi.value }}</strong>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="chart-grid">
+        <article class="panel wide">
+            <div class="chart" id="daily"></div>
+        </article>
+        <article class="panel">
+            <div class="chart" id="dept"></div>
+        </article>
+        <article class="panel">
+            <div class="chart" id="type"></div>
+        </article>
+        <article class="panel">
+            <div class="chart" id="material"></div>
+        </article>
+        <article class="panel">
+            <div class="chart" id="month"></div>
+        </article>
+    </section>
+
+    <section class="table-section">
+        <div class="section-heading">
+            <h2>Recent Records</h2>
+            <p>{{ filtered_count }} matching rows</p>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Material</th>
+                        <th>KG</th>
+                        <th>Dept</th>
+                        <th>Type</th>
+                        <th>Remark</th>
+                        <th>Total Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_data %}
+                    <tr>
+                        <td>{{ row.Date }}</td>
+                        <td>{{ row["Customer Name"] }}</td>
+                        <td class="numeric">{{ row.KG }}</td>
+                        <td>{{ row.Dept }}</td>
+                        <td>{{ row.Type }}</td>
+                        <td>{{ row.Remark }}</td>
+                        <td class="numeric">{{ row["Total Weight"] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script type="application/json" id="chart-data">{{ charts | tojson }}</script>
+    <script>
+        const charts = JSON.parse(document.getElementById("chart-data").textContent);
+        const config = {responsive: true, displaylogo: false};
+
+        for (const [id, spec] of Object.entries(charts)) {
+            Plotly.newPlot(id, spec.data, spec.layout, config);
+        }
+    </script>
+    {% endif %}
+</main>
+</body>
+</html>
